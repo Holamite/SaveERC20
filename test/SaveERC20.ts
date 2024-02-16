@@ -69,7 +69,7 @@ describe("SaveERC20", function () {
       expect(userBalance).to.equal(depositValue);
     });
 
-    it("Should be not able deposit zero token value", async function () {
+    it("Should not be able deposit zero token value", async function () {
       const { saveERC20 } = await loadFixture(deployContractSaveERC20);
 
       expect(saveERC20.deposit(0)).to.be.revertedWith(
@@ -77,8 +77,55 @@ describe("SaveERC20", function () {
       );
     });
   });
-});
 
-describe("Withdraw", function () {
-  it("");
+  describe("Withdraw", function () {
+    it("Should be able withdraw deposited token", async function () {
+      // Load the necessary accounts and contracts from the fixture
+      const { saveERC20, erc20, Address2 } = await loadFixture(
+        deployContractSaveERC20
+      );
+
+      // Define the amount of tokens to deposit
+      const depositValue = ethers.parseUnits("1", 18);
+
+      // Transfer tokens from owner to otherAccount
+      await erc20.transfer(Address2.address, depositValue);
+
+      // Approve SaveERC20 contract to spend tokens on behalf of otherAccount
+      await erc20.connect(Address2).approve(saveERC20.target, depositValue);
+
+      // Deposit tokens into SaveERC20 contract
+      await saveERC20.connect(Address2).deposit(depositValue);
+
+      // Check the balance of otherAccount before withdrawal
+      const userBalanceBefore = await saveERC20.checkUserBalance(
+        Address2.address
+      );
+
+      await saveERC20.connect(Address2).withdraw(depositValue);
+
+      const userBalanceAfter = await saveERC20.checkUserBalance(
+        Address2.address
+      );
+      expect(userBalanceAfter).to.equal(0);
+    });
+
+    it("Should not be able to withdraw if balance is zero", async function () {
+      const { saveERC20 } = await loadFixture(deployContractSaveERC20);
+
+      expect(saveERC20.withdraw(0)).to.be.revertedWith("You are a thief!");
+    });
+
+    it("Should not be able to withdraw if funds is not insufficient", async function () {
+      const { saveERC20, Address2 } = await loadFixture(
+        deployContractSaveERC20
+      );
+
+      const depositValue = ethers.parseUnits("1", 18);
+
+      expect(
+        saveERC20.connect(Address2).withdraw(depositValue)
+      ).to.be.revertedWith("insufficient funds");
+    });
+  });
 });
